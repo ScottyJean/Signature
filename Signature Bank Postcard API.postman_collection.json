@@ -645,6 +645,75 @@
 				}
 			},
 			"response": []
+		},
+		{
+			"name": "New Request",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var jsonData = JSON.parse(responseBody);\r",
+							"postman.setEnvironmentVariable(\"Access_token\", \"Bearer \" + jsonData.access_token);"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "y0FISAGAS+OSIASec5Cts/khsWVXaWCoxZcLF2d8o/A=",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "IKIACA67D931869E40BE07EE418A0B07A4A6D9EEF588",
+							"type": "string"
+						},
+						{
+							"key": "showPassword",
+							"value": false,
+							"type": "boolean"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "urlencoded",
+					"urlencoded": [
+						{
+							"key": "scope",
+							"value": "profile",
+							"type": "text"
+						},
+						{
+							"key": "grant_type",
+							"value": "client_credentials",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "https://sandbox.interswitchng.com/passport/oauth/token",
+					"protocol": "https",
+					"host": [
+						"sandbox",
+						"interswitchng",
+						"com"
+					],
+					"path": [
+						"passport",
+						"oauth",
+						"token"
+					]
+				}
+			},
+			"response": []
 		}
 	]
 }
