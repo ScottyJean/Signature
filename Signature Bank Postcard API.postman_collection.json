@@ -1,0 +1,650 @@
+{
+	"info": {
+		"_postman_id": "0706c61e-e6fd-4588-9811-84584796b009",
+		"name": "Signature Bank Postcard API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "16894606"
+	},
+	"item": [
+		{
+			"name": "Create Card (Prepaid)",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"function guid() {\r",
+							"function s4() {\r",
+							"return Math.floor((1 + Math.random()) * 0x10000)\r",
+							".toString(16)\r",
+							".substring(1);\r",
+							"}\r",
+							"return s4() + s4() + s4() + s4() + \r",
+							"s4() + s4() + s4() + s4();\r",
+							"}\r",
+							"\r",
+							"function timestamp(){\r",
+							"return Date.now()/1000 | 0;\r",
+							"}\r",
+							"'use strict';\r",
+							"var Sha1 = {};\r",
+							"\r",
+							"/**\r",
+							"* Generates SHA-1 hash of string.\r",
+							"*\r",
+							"* @param {string} msg - (Unicode) string to be hashed.\r",
+							"* @returns {string} Hash of msg as hex character string.\r",
+							"*/\r",
+							"Sha1.hash = function(msg) {\r",
+							"// convert string to UTF-8, as SHA only deals with byte-streams\r",
+							"msg = msg.utf8Encode();\r",
+							"// constants [§4.2.1]\r",
+							"var K = [ 0x5a827999, 0x6ed9eba1, 0x8f1bbcdc, 0xca62c1d6 ];\r",
+							"// PREPROCESSING\r",
+							"msg += String.fromCharCode(0x80); // add trailing '1' bit (+ 0's padding) to string [§5.1.1]\r",
+							"// convert string msg into 512-bit/16-integer blocks arrays of ints [§5.2.1]\r",
+							"var l = msg.length/4 + 2; // length (in 32-bit integers) of msg + ‘1’ + appended length\r",
+							"var N = Math.ceil(l/16); // number of 16-integer-blocks required to hold 'l' ints\r",
+							"var M = new Array(N);\r",
+							"for (var i=0; i<N; i++) {\r",
+							"M[i] = new Array(16);\r",
+							"for (var j=0; j<16; j++) { // encode 4 chars per integer, big-endian encoding\r",
+							"M[i][j] = (msg.charCodeAt(i*64+j*4)<<24) | (msg.charCodeAt(i*64+j*4+1)<<16) |\r",
+							"(msg.charCodeAt(i*64+j*4+2)<<8) | (msg.charCodeAt(i*64+j*4+3));\r",
+							"} // note running off the end of msg is ok 'cos bitwise ops on NaN return 0\r",
+							"}\r",
+							"// add length (in bits) into final pair of 32-bit integers (big-endian) [§5.1.1]\r",
+							"// note: most significant word would be (len-1)*8 >>> 32, but since JS converts\r",
+							"// bitwise-op args to 32 bits, we need to simulate this by arithmetic operators\r",
+							"M[N-1][14] = ((msg.length-1)*8) / Math.pow(2, 32); M[N-1][14] = Math.floor(M[N-1][14]);\r",
+							"M[N-1][15] = ((msg.length-1)*8) & 0xffffffff;\r",
+							"// set initial hash value [§5.3.1]\r",
+							"var H0 = 0x67452301;\r",
+							"var H1 = 0xefcdab89;\r",
+							"var H2 = 0x98badcfe;\r",
+							"var H3 = 0x10325476;\r",
+							"var H4 = 0xc3d2e1f0;\r",
+							"// HASH COMPUTATION [§6.1.2]\r",
+							"var W = new Array(80); var a, b, c, d, e;\r",
+							"for (var i=0; i<N; i++) {\r",
+							"// 1 - prepare message schedule 'W'\r",
+							"for (var t=0; t<16; t++) W[t] = M[i][t];\r",
+							"for (var t=16; t<80; t++) W[t] = Sha1.ROTL(W[t-3] ^ W[t-8] ^ W[t-14] ^ W[t-16], 1);\r",
+							"// 2 - initialise five working variables a, b, c, d, e with previous hash value\r",
+							"a = H0; b = H1; c = H2; d = H3; e = H4;\r",
+							"// 3 - main loop\r",
+							"for (var t=0; t<80; t++) {\r",
+							"var s = Math.floor(t/20); // seq for blocks of 'f' functions and 'K' constants\r",
+							"var T = (Sha1.ROTL(a,5) + Sha1.f(s,b,c,d) + e + K[s] + W[t]) & 0xffffffff;\r",
+							"e = d;\r",
+							"d = c;\r",
+							"c = Sha1.ROTL(b, 30);\r",
+							"b = a;\r",
+							"a = T;\r",
+							"}\r",
+							"// 4 - compute the new intermediate hash value (note 'addition modulo 2^32')\r",
+							"H0 = (H0+a) & 0xffffffff;\r",
+							"H1 = (H1+b) & 0xffffffff;\r",
+							"H2 = (H2+c) & 0xffffffff;\r",
+							"H3 = (H3+d) & 0xffffffff;\r",
+							"H4 = (H4+e) & 0xffffffff;\r",
+							"}\r",
+							"return Sha1.toHexStr(H0) + Sha1.toHexStr(H1) + Sha1.toHexStr(H2) +\r",
+							"Sha1.toHexStr(H3) + Sha1.toHexStr(H4);\r",
+							"};\r",
+							"\r",
+							"/**\r",
+							"* Function 'f' [§4.1.1].\r",
+							"* @private\r",
+							"*/\r",
+							"Sha1.f = function(s, x, y, z) {\r",
+							"switch (s) {\r",
+							"case 0: return (x & y) ^ (~x & z); // Ch()\r",
+							"case 1: return x ^ y ^ z; // Parity()\r",
+							"case 2: return (x & y) ^ (x & z) ^ (y & z); // Maj()\r",
+							"case 3: return x ^ y ^ z; // Parity()\r",
+							"}\r",
+							"};\r",
+							"/**\r",
+							"* Rotates left (circular left shift) value x by n positions [§3.2.5].\r",
+							"* @private\r",
+							"*/\r",
+							"Sha1.ROTL = function(x, n) {\r",
+							"return (x<<n) | (x>>>(32-n));\r",
+							"};\r",
+							"\r",
+							"/**\r",
+							"* Hexadecimal representation of a number.\r",
+							"* @private\r",
+							"*/\r",
+							"Sha1.toHexStr = function(n) {\r",
+							"// note can't use toString(16) as it is implementation-dependant,\r",
+							"// and in IE returns signed numbers when used on full words\r",
+							"var s='', v;\r",
+							"for (var i=7; i>=0; i--) { v = (n>>>(i*4)) & 0xf; s += v.toString(16); }\r",
+							"return s;\r",
+							"};\r",
+							"\r",
+							"/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */\r",
+							"\r",
+							"/** Extend String object with method to encode multi-byte string to utf8\r",
+							"* - monsur.hossa.in/2012/07/20/utf-8-in-javascript.html */\r",
+							"if (typeof String.prototype.utf8Encode == 'undefined') {\r",
+							"String.prototype.utf8Encode = function() {\r",
+							"return unescape( encodeURIComponent( this ) );\r",
+							"};\r",
+							"}\r",
+							"/** Extend String object with method to decode utf8 string to multi-byte */\r",
+							"if (typeof String.prototype.utf8Decode == 'undefined') {\r",
+							"String.prototype.utf8Decode = function() {\r",
+							"try {\r",
+							"return decodeURIComponent( escape( this ) );\r",
+							"} catch (e) {\r",
+							"return this; // invalid UTF-8? return as-is\r",
+							"}\r",
+							"};\r",
+							"}\r",
+							"\r",
+							"/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */\r",
+							"if (typeof module != 'undefined' && module.exports) module.exports = Sha1; // CommonJs export\r",
+							"function hexToBase64(str) {\r",
+							"return btoa(String.fromCharCode.apply(null,\r",
+							"str.replace(/\\r|\\n/g, \"\").replace(/([\\da-fA-F]{2}) ?/g, \"0x$1 \").replace(/ +$/, \"\").split(\" \"))\r",
+							");\r",
+							"}\r",
+							"function b64EncodeUnicode(str) {\r",
+							"return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, function(match, p1) {\r",
+							"return String.fromCharCode('0x' + p1);\r",
+							"}));\r",
+							"}\r",
+							"var httpMethod = request.method;\r",
+							"var host = postman.getEnvironmentVariable(\"host\");\r",
+							"var url = request.url;\r",
+							"url = url.replace(\"http://\", \"https://\");\r",
+							"url = url.replace(\"{{host}}\",host);\r",
+							"url = encodeURIComponent(url);\r",
+							"var timestamp =timestamp();\r",
+							"var nonce = guid();\r",
+							"var clientId = postman.getEnvironmentVariable(\"clientId\");\r",
+							"var authorization = \"InterswitchAuth\" + \" \"+b64EncodeUnicode(clientId);\r",
+							"var clientSecret = postman.getEnvironmentVariable(\"clientSecret\");\r",
+							"\r",
+							"postman.setEnvironmentVariable(\"Timestamp\", timestamp);\r",
+							"var signatureCipher = httpMethod + \"&\"+ url + \"&\" +timestamp + \"&\" + nonce + \"&\" + clientId + \"&\" + clientSecret;\r",
+							" \r",
+							"postman.setEnvironmentVariable(\"Signature\",hexToBase64(Sha1.hash(signatureCipher)));\r",
+							"\r",
+							"postman.setEnvironmentVariable(\"Nonce\", nonce);\r",
+							"\r",
+							"postman.setEnvironmentVariable(\"base\", signatureCipher);\r",
+							" \r",
+							"postman.setEnvironmentVariable(\"Authorization\", authorization);"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJSUzI1NiJ9.eyJtZXJjaGFudF9jb2RlIjoiTVgxMjA5IiwicHJvZHVjdGlvbl9wYXltZW50X2NvZGUiOiIwMDE2NDYzOTg1NCIsInByb2R1Y3RJZCI6MTMsInJlcXVlc3Rvcl9pZCI6IjAwMTU2NjM2Mzc0IiwiZW52IjoiVEVTVCIsInBheWFibGVfaWQiOiI1MzkzIiwiY2xpZW50X2Rlc2NyaXB0aW9uIjpudWxsLCJjbGllbnRfaWQiOiJJS0lBQ0E2N0Q5MzE4NjlFNDBCRTA3RUU0MThBMEIwN0E0QTZEOUVFRjU4OCIsImluc3RpdHV0aW9uX2lkIjoiMTE3MzkiLCJhdWQiOlsiYXBpLWdhdGV3YXkiLCJhcmJpdGVyIiwiY2Flc2FyIiwiY2FyZCIsImNhcmRsZXNzLXNlcnZpY2UiLCJjcmVkaXQtc2NvcmUtc2VydmljZSIsImluY29nbml0byIsImlzdy1jb2xsZWN0aW9ucyIsImlzdy1jb3JlIiwiaXN3LWRhdGEtc2VydmljZSIsImlzdy1sZW5kaW5nLXNlcnZpY2UiLCJpc3ctcGF5bWVudGdhdGV3YXkiLCJpc3ctdHJhbnNmZXItc2VydmljZS1jb3JlLW1pY3Jvc2VydmljZSIsInBhc3Nwb3J0IiwicGF5bWVudC1zZXJ2aWNlIiwicGQtc2VydmljZSIsInBkLXNlcnZpY2UtY3VzdG9tZXItc2VydmljZSIsInBkLXRyYW5zYWN0aW9uLXNlcnZpY2UiLCJwb3N0Y2FyZC1hcGkiLCJwb3N0Y2FyZC1hcGktdjIiLCJwcm9qZWN0LXgtbWVyY2hhbnQiLCJxYi1idXNpbmVzcy1wb3J0YWwiLCJ0cmFuc2Zlci1zZXJ2aWNlLWNvcmUiLCJ0cmFuc2Zlci1zZXJ2aWNlLWNvcmUtYWRtaW4iLCJ2YXVsdCJdLCJjb3JlX2lkIjoiODE0MSIsInNjb3BlIjpbInByb2ZpbGUiXSwiYXBpX3Jlc291cmNlcyI6WyJyaWQtUE9TVC9hcGkvdjEvc2FmZXRva2VuIiwicmlkLVBPU1QvcWJyZXBvcnQvYXBpLyoiLCJyaWQtR0VUL3FicmVwb3J0L2FwaS8qIiwicmlkLVBPU1QvaXN3LWRhdGEtc2VydmljZS8qKiIsInJpZC1QVVQvaXN3LWRhdGEtc2VydmljZS8qKiIsInJpZC1HRVQvaXN3LWRhdGEtc2VydmljZS8qKiIsInJpZC1QT1NUL3RyYW5zZmVycy9pbnF1aXJpZXMvKioiLCJyaWQtUE9TVC90cmFuc2ZlcnMvYWNjb3VudHMvKioiLCJyaWQtUE9TVC9hcGkvdjEvdHJhbnNmZXJzL3NlY3VyaXR5LyoqIiwicmlkLVBPU1QvYXBpL3YxL3RyYW5zZmVycy9pbnN0aXR1dGlvbnMvZngvKioiLCJyaWQtUFVUL3RyYW5zZmVycy9pbnF1aXJpZXMvdXBkYXRlIiwicmlkLVBVVC9hcGkvdjEvdHJhbnNmZXJzL3NlY3VyaXR5LyoqIiwicmlkLVBVVC9hcGkvdjEvdHJhbnNmZXJzL2luc3RpdHV0aW9ucy9meC8qKiIsInJpZC1HRVQvdHJhbnNmZXJzL2NyZWRpdHMvKioiLCJyaWQtR0VUL3RyYW5zZmVycy9zZXR0bGVtZW50cy8qKiIsInJpZC1HRVQvdHJhbnNmZXJzL3RyYW5zYWN0aW9uLyoqIiwicmlkLUdFVC9hcGkvdjEvdHJhbnNmZXJzL3NlY3VyaXR5LyoqIiwicmlkLUdFVC9hcGkvdjEvdHJhbnNmZXJzL2luc3RpdHV0aW9ucy9meC8qKiIsInJpZC1ERUxFVEUvYXBpL3YxL3RyYW5zZmVycy9zZWN1cml0eS8qKiJdLCJwb3N0Y2FyZF91c2VyIjoiZXNiIiwiZXhwIjoxNjg1Nzc4NDE2LCJjbGllbnRfbmFtZSI6IlRlc3REZW1vQXBwIiwiY2xpZW50X2xvZ28iOm51bGwsImp0aSI6IjNhYTg5MDI4LWQ2MTMtNDAwYi04MWE4LTE1YzljYTNhODQyOSIsInBheW1lbnRfY29kZSI6IjA1MTQxOTgxNTQ2ODUifQ.FoJZiiDfKi2A1kAHSMgEV6NTUXpoS8bX8DDxnneqwH08L0si9OHuMMnVhdPGvb_l9jl1iRx78_oHi-5mFOltmgkwi4GiORhugfM2xDzWDsiulJwqAS3LKH3isC3zuV64UXY4pSA33CeHnnFYmkzQYyiyciSxql4eAmbsNL4tvUhkoNmPh8OMXQ0F5IFz65cxa7bE6W1PPpFLoerWSEIwu6TymeWNI1VXrbDxomUXhQwDkjF8hCgEo2ap91W41XUoFahy--vlLdH9vuG8YyZqWqFuiWdVMUgadi9CzBcP2orFA5kvR8Xd8C5trizccT8EgAZTZ4jCeRcvfMpeFCM0Cw",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"issuerNr\" : \"1\",\r\n  \"cardProgram\" : \"VERVE\",\r\n  \"userId\" : \"sheriff.adebisi\",\r\n  \"firstName\" : \"Test\",\r\n  \"lastName\" : \"Test1\",\r\n  \"nameOnCard\" : \"TestTest1\",\r\n  \"dateOfBirth\":\"20230609\",\r\n  \"currencyCode\" : \"566\",\r\n  \"mobileNr\":\"08032162793\",\r\n  \"emailAddress\":\"test.test1@amfb.com\",\r\n  \"streetAddress\":\"12 eiuoi\",\r\n  \"streetAddressLine2\":\"Delaware\",\r\n  \"city\":\"Lagos\",\r\n  \"state\":\"Lagos\",\r\n  \"postalCode\":\"23401\",\r\n  \"countryCode\":\"NGN\"  \r\n}\r\n"
+				},
+				"url": {
+					"raw": "https://sandbox.interswitchng.com/cms/api/v1/card/prepaid/new",
+					"protocol": "https",
+					"host": [
+						"sandbox",
+						"interswitchng",
+						"com"
+					],
+					"path": [
+						"cms",
+						"api",
+						"v1",
+						"card",
+						"prepaid",
+						"new"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Change/Update Pin",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"function guid() {\r",
+							"function s4() {\r",
+							"return Math.floor((1 + Math.random()) * 0x10000)\r",
+							".toString(16)\r",
+							".substring(1);\r",
+							"}\r",
+							"return s4() + s4() + s4() + s4() + \r",
+							"s4() + s4() + s4() + s4();\r",
+							"}\r",
+							"\r",
+							"function timestamp(){\r",
+							"return Date.now()/1000 | 0;\r",
+							"}\r",
+							"'use strict';\r",
+							"var Sha1 = {};\r",
+							"\r",
+							"/**\r",
+							"* Generates SHA-1 hash of string.\r",
+							"*\r",
+							"* @param {string} msg - (Unicode) string to be hashed.\r",
+							"* @returns {string} Hash of msg as hex character string.\r",
+							"*/\r",
+							"Sha1.hash = function(msg) {\r",
+							"// convert string to UTF-8, as SHA only deals with byte-streams\r",
+							"msg = msg.utf8Encode();\r",
+							"// constants [§4.2.1]\r",
+							"var K = [ 0x5a827999, 0x6ed9eba1, 0x8f1bbcdc, 0xca62c1d6 ];\r",
+							"// PREPROCESSING\r",
+							"msg += String.fromCharCode(0x80); // add trailing '1' bit (+ 0's padding) to string [§5.1.1]\r",
+							"// convert string msg into 512-bit/16-integer blocks arrays of ints [§5.2.1]\r",
+							"var l = msg.length/4 + 2; // length (in 32-bit integers) of msg + ‘1’ + appended length\r",
+							"var N = Math.ceil(l/16); // number of 16-integer-blocks required to hold 'l' ints\r",
+							"var M = new Array(N);\r",
+							"for (var i=0; i<N; i++) {\r",
+							"M[i] = new Array(16);\r",
+							"for (var j=0; j<16; j++) { // encode 4 chars per integer, big-endian encoding\r",
+							"M[i][j] = (msg.charCodeAt(i*64+j*4)<<24) | (msg.charCodeAt(i*64+j*4+1)<<16) |\r",
+							"(msg.charCodeAt(i*64+j*4+2)<<8) | (msg.charCodeAt(i*64+j*4+3));\r",
+							"} // note running off the end of msg is ok 'cos bitwise ops on NaN return 0\r",
+							"}\r",
+							"// add length (in bits) into final pair of 32-bit integers (big-endian) [§5.1.1]\r",
+							"// note: most significant word would be (len-1)*8 >>> 32, but since JS converts\r",
+							"// bitwise-op args to 32 bits, we need to simulate this by arithmetic operators\r",
+							"M[N-1][14] = ((msg.length-1)*8) / Math.pow(2, 32); M[N-1][14] = Math.floor(M[N-1][14]);\r",
+							"M[N-1][15] = ((msg.length-1)*8) & 0xffffffff;\r",
+							"// set initial hash value [§5.3.1]\r",
+							"var H0 = 0x67452301;\r",
+							"var H1 = 0xefcdab89;\r",
+							"var H2 = 0x98badcfe;\r",
+							"var H3 = 0x10325476;\r",
+							"var H4 = 0xc3d2e1f0;\r",
+							"// HASH COMPUTATION [§6.1.2]\r",
+							"var W = new Array(80); var a, b, c, d, e;\r",
+							"for (var i=0; i<N; i++) {\r",
+							"// 1 - prepare message schedule 'W'\r",
+							"for (var t=0; t<16; t++) W[t] = M[i][t];\r",
+							"for (var t=16; t<80; t++) W[t] = Sha1.ROTL(W[t-3] ^ W[t-8] ^ W[t-14] ^ W[t-16], 1);\r",
+							"// 2 - initialise five working variables a, b, c, d, e with previous hash value\r",
+							"a = H0; b = H1; c = H2; d = H3; e = H4;\r",
+							"// 3 - main loop\r",
+							"for (var t=0; t<80; t++) {\r",
+							"var s = Math.floor(t/20); // seq for blocks of 'f' functions and 'K' constants\r",
+							"var T = (Sha1.ROTL(a,5) + Sha1.f(s,b,c,d) + e + K[s] + W[t]) & 0xffffffff;\r",
+							"e = d;\r",
+							"d = c;\r",
+							"c = Sha1.ROTL(b, 30);\r",
+							"b = a;\r",
+							"a = T;\r",
+							"}\r",
+							"// 4 - compute the new intermediate hash value (note 'addition modulo 2^32')\r",
+							"H0 = (H0+a) & 0xffffffff;\r",
+							"H1 = (H1+b) & 0xffffffff;\r",
+							"H2 = (H2+c) & 0xffffffff;\r",
+							"H3 = (H3+d) & 0xffffffff;\r",
+							"H4 = (H4+e) & 0xffffffff;\r",
+							"}\r",
+							"return Sha1.toHexStr(H0) + Sha1.toHexStr(H1) + Sha1.toHexStr(H2) +\r",
+							"Sha1.toHexStr(H3) + Sha1.toHexStr(H4);\r",
+							"};\r",
+							"\r",
+							"/**\r",
+							"* Function 'f' [§4.1.1].\r",
+							"* @private\r",
+							"*/\r",
+							"Sha1.f = function(s, x, y, z) {\r",
+							"switch (s) {\r",
+							"case 0: return (x & y) ^ (~x & z); // Ch()\r",
+							"case 1: return x ^ y ^ z; // Parity()\r",
+							"case 2: return (x & y) ^ (x & z) ^ (y & z); // Maj()\r",
+							"case 3: return x ^ y ^ z; // Parity()\r",
+							"}\r",
+							"};\r",
+							"/**\r",
+							"* Rotates left (circular left shift) value x by n positions [§3.2.5].\r",
+							"* @private\r",
+							"*/\r",
+							"Sha1.ROTL = function(x, n) {\r",
+							"return (x<<n) | (x>>>(32-n));\r",
+							"};\r",
+							"\r",
+							"/**\r",
+							"* Hexadecimal representation of a number.\r",
+							"* @private\r",
+							"*/\r",
+							"Sha1.toHexStr = function(n) {\r",
+							"// note can't use toString(16) as it is implementation-dependant,\r",
+							"// and in IE returns signed numbers when used on full words\r",
+							"var s='', v;\r",
+							"for (var i=7; i>=0; i--) { v = (n>>>(i*4)) & 0xf; s += v.toString(16); }\r",
+							"return s;\r",
+							"};\r",
+							"\r",
+							"/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */\r",
+							"\r",
+							"/** Extend String object with method to encode multi-byte string to utf8\r",
+							"* - monsur.hossa.in/2012/07/20/utf-8-in-javascript.html */\r",
+							"if (typeof String.prototype.utf8Encode == 'undefined') {\r",
+							"String.prototype.utf8Encode = function() {\r",
+							"return unescape( encodeURIComponent( this ) );\r",
+							"};\r",
+							"}\r",
+							"/** Extend String object with method to decode utf8 string to multi-byte */\r",
+							"if (typeof String.prototype.utf8Decode == 'undefined') {\r",
+							"String.prototype.utf8Decode = function() {\r",
+							"try {\r",
+							"return decodeURIComponent( escape( this ) );\r",
+							"} catch (e) {\r",
+							"return this; // invalid UTF-8? return as-is\r",
+							"}\r",
+							"};\r",
+							"}\r",
+							"\r",
+							"/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */\r",
+							"if (typeof module != 'undefined' && module.exports) module.exports = Sha1; // CommonJs export\r",
+							"function hexToBase64(str) {\r",
+							"return btoa(String.fromCharCode.apply(null,\r",
+							"str.replace(/\\r|\\n/g, \"\").replace(/([\\da-fA-F]{2}) ?/g, \"0x$1 \").replace(/ +$/, \"\").split(\" \"))\r",
+							");\r",
+							"}\r",
+							"function b64EncodeUnicode(str) {\r",
+							"return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, function(match, p1) {\r",
+							"return String.fromCharCode('0x' + p1);\r",
+							"}));\r",
+							"}\r",
+							"var httpMethod = request.method;\r",
+							"var host = postman.getEnvironmentVariable(\"host\");\r",
+							"var url = request.url;\r",
+							"url = url.replace(\"http://\", \"https://\");\r",
+							"url = url.replace(\"{{host}}\",host);\r",
+							"url = encodeURIComponent(url);\r",
+							"var timestamp =timestamp();\r",
+							"var nonce = guid();\r",
+							"var clientId = postman.getEnvironmentVariable(\"clientId\");\r",
+							"var authorization = \"InterswitchAuth\" + \" \"+b64EncodeUnicode(clientId);\r",
+							"var clientSecret = postman.getEnvironmentVariable(\"clientSecret\");\r",
+							"\r",
+							"postman.setEnvironmentVariable(\"Timestamp\", timestamp);\r",
+							"var signatureCipher = httpMethod + \"&\"+ url + \"&\" +timestamp + \"&\" + nonce + \"&\" + clientId + \"&\" + clientSecret;\r",
+							" \r",
+							"postman.setEnvironmentVariable(\"Signature\",hexToBase64(Sha1.hash(signatureCipher)));\r",
+							"\r",
+							"postman.setEnvironmentVariable(\"Nonce\", nonce);\r",
+							"\r",
+							"postman.setEnvironmentVariable(\"base\", signatureCipher);\r",
+							" \r",
+							"postman.setEnvironmentVariable(\"Authorization\", authorization);"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"protocolProfileBehavior": {
+				"disabledSystemHeaders": {}
+			},
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJSUzI1NiJ9.eyJtZXJjaGFudF9jb2RlIjoiTVgxMjA5IiwicHJvZHVjdGlvbl9wYXltZW50X2NvZGUiOiIwMDE2NDYzOTg1NCIsInByb2R1Y3RJZCI6MTMsInJlcXVlc3Rvcl9pZCI6IjAwMTU2NjM2Mzc0IiwiZW52IjoiVEVTVCIsInBheWFibGVfaWQiOiI1MzkzIiwiY2xpZW50X2Rlc2NyaXB0aW9uIjpudWxsLCJjbGllbnRfaWQiOiJJS0lBQ0E2N0Q5MzE4NjlFNDBCRTA3RUU0MThBMEIwN0E0QTZEOUVFRjU4OCIsImluc3RpdHV0aW9uX2lkIjoiMTE3MzkiLCJhdWQiOlsiYXBpLWdhdGV3YXkiLCJhcmJpdGVyIiwiY2Flc2FyIiwiY2FyZCIsImNhcmRsZXNzLXNlcnZpY2UiLCJjcmVkaXQtc2NvcmUtc2VydmljZSIsImluY29nbml0byIsImlzdy1jb2xsZWN0aW9ucyIsImlzdy1jb3JlIiwiaXN3LWRhdGEtc2VydmljZSIsImlzdy1sZW5kaW5nLXNlcnZpY2UiLCJpc3ctcGF5bWVudGdhdGV3YXkiLCJpc3ctdHJhbnNmZXItc2VydmljZS1jb3JlLW1pY3Jvc2VydmljZSIsInBhc3Nwb3J0IiwicGF5bWVudC1zZXJ2aWNlIiwicGQtc2VydmljZSIsInBkLXNlcnZpY2UtY3VzdG9tZXItc2VydmljZSIsInBkLXRyYW5zYWN0aW9uLXNlcnZpY2UiLCJwb3N0Y2FyZC1hcGkiLCJwb3N0Y2FyZC1hcGktdjIiLCJwcm9qZWN0LXgtbWVyY2hhbnQiLCJxYi1idXNpbmVzcy1wb3J0YWwiLCJ0cmFuc2Zlci1zZXJ2aWNlLWNvcmUiLCJ0cmFuc2Zlci1zZXJ2aWNlLWNvcmUtYWRtaW4iLCJ2YXVsdCJdLCJjb3JlX2lkIjoiODE0MSIsInNjb3BlIjpbInByb2ZpbGUiXSwiYXBpX3Jlc291cmNlcyI6WyJyaWQtUE9TVC9hcGkvdjEvc2FmZXRva2VuIiwicmlkLVBPU1QvcWJyZXBvcnQvYXBpLyoiLCJyaWQtR0VUL3FicmVwb3J0L2FwaS8qIiwicmlkLVBPU1QvaXN3LWRhdGEtc2VydmljZS8qKiIsInJpZC1QVVQvaXN3LWRhdGEtc2VydmljZS8qKiIsInJpZC1HRVQvaXN3LWRhdGEtc2VydmljZS8qKiIsInJpZC1QT1NUL3RyYW5zZmVycy9pbnF1aXJpZXMvKioiLCJyaWQtUE9TVC90cmFuc2ZlcnMvYWNjb3VudHMvKioiLCJyaWQtUE9TVC9hcGkvdjEvdHJhbnNmZXJzL3NlY3VyaXR5LyoqIiwicmlkLVBPU1QvYXBpL3YxL3RyYW5zZmVycy9pbnN0aXR1dGlvbnMvZngvKioiLCJyaWQtUFVUL3RyYW5zZmVycy9pbnF1aXJpZXMvdXBkYXRlIiwicmlkLVBVVC9hcGkvdjEvdHJhbnNmZXJzL3NlY3VyaXR5LyoqIiwicmlkLVBVVC9hcGkvdjEvdHJhbnNmZXJzL2luc3RpdHV0aW9ucy9meC8qKiIsInJpZC1HRVQvdHJhbnNmZXJzL2NyZWRpdHMvKioiLCJyaWQtR0VUL3RyYW5zZmVycy9zZXR0bGVtZW50cy8qKiIsInJpZC1HRVQvdHJhbnNmZXJzL3RyYW5zYWN0aW9uLyoqIiwicmlkLUdFVC9hcGkvdjEvdHJhbnNmZXJzL3NlY3VyaXR5LyoqIiwicmlkLUdFVC9hcGkvdjEvdHJhbnNmZXJzL2luc3RpdHV0aW9ucy9meC8qKiIsInJpZC1ERUxFVEUvYXBpL3YxL3RyYW5zZmVycy9zZWN1cml0eS8qKiJdLCJwb3N0Y2FyZF91c2VyIjoiZXNiIiwiZXhwIjoxNjg1Nzc4NDE2LCJjbGllbnRfbmFtZSI6IlRlc3REZW1vQXBwIiwiY2xpZW50X2xvZ28iOm51bGwsImp0aSI6IjNhYTg5MDI4LWQ2MTMtNDAwYi04MWE4LTE1YzljYTNhODQyOSIsInBheW1lbnRfY29kZSI6IjA1MTQxOTgxNTQ2ODUifQ.FoJZiiDfKi2A1kAHSMgEV6NTUXpoS8bX8DDxnneqwH08L0si9OHuMMnVhdPGvb_l9jl1iRx78_oHi-5mFOltmgkwi4GiORhugfM2xDzWDsiulJwqAS3LKH3isC3zuV64UXY4pSA33CeHnnFYmkzQYyiyciSxql4eAmbsNL4tvUhkoNmPh8OMXQ0F5IFz65cxa7bE6W1PPpFLoerWSEIwu6TymeWNI1VXrbDxomUXhQwDkjF8hCgEo2ap91W41XUoFahy--vlLdH9vuG8YyZqWqFuiWdVMUgadi9CzBcP2orFA5kvR8Xd8C5trizccT8EgAZTZ4jCeRcvfMpeFCM0Cw",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"pan\": \"5061030000002319730\",\r\n    \"seqNr\": \"001\",\r\n    \"expiryDate\": \"2605\",\r\n    \"pinBlock\": \"5809F6137E444094\",\r\n    \"accountType\": \"00\",\r\n    \"userId\": \"sheriff.Adebisi\"\r\n}"
+				},
+				"url": {
+					"raw": "https://sandbox.interswitchng.com/cms/api/v1/card/update-pin",
+					"protocol": "https",
+					"host": [
+						"sandbox",
+						"interswitchng",
+						"com"
+					],
+					"path": [
+						"cms",
+						"api",
+						"v1",
+						"card",
+						"update-pin"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Reissue Card Pin",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJSUzI1NiJ9.eyJtZXJjaGFudF9jb2RlIjoiTVgxMjA5IiwicHJvZHVjdGlvbl9wYXltZW50X2NvZGUiOiIwMDE2NDYzOTg1NCIsInByb2R1Y3RJZCI6MTMsInJlcXVlc3Rvcl9pZCI6IjAwMTU2NjM2Mzc0IiwiZW52IjoiVEVTVCIsInBheWFibGVfaWQiOiI1MzkzIiwiY2xpZW50X2Rlc2NyaXB0aW9uIjpudWxsLCJjbGllbnRfaWQiOiJJS0lBQ0E2N0Q5MzE4NjlFNDBCRTA3RUU0MThBMEIwN0E0QTZEOUVFRjU4OCIsImluc3RpdHV0aW9uX2lkIjoiMTE3MzkiLCJhdWQiOlsiYXBpLWdhdGV3YXkiLCJhcmJpdGVyIiwiY2Flc2FyIiwiY2FyZCIsImNhcmRsZXNzLXNlcnZpY2UiLCJjcmVkaXQtc2NvcmUtc2VydmljZSIsImluY29nbml0byIsImlzdy1jb2xsZWN0aW9ucyIsImlzdy1jb3JlIiwiaXN3LWRhdGEtc2VydmljZSIsImlzdy1sZW5kaW5nLXNlcnZpY2UiLCJpc3ctcGF5bWVudGdhdGV3YXkiLCJpc3ctdHJhbnNmZXItc2VydmljZS1jb3JlLW1pY3Jvc2VydmljZSIsInBhc3Nwb3J0IiwicGF5bWVudC1zZXJ2aWNlIiwicGQtc2VydmljZSIsInBkLXNlcnZpY2UtY3VzdG9tZXItc2VydmljZSIsInBkLXRyYW5zYWN0aW9uLXNlcnZpY2UiLCJwb3N0Y2FyZC1hcGkiLCJwb3N0Y2FyZC1hcGktdjIiLCJwcm9qZWN0LXgtbWVyY2hhbnQiLCJxYi1idXNpbmVzcy1wb3J0YWwiLCJ0cmFuc2Zlci1zZXJ2aWNlLWNvcmUiLCJ0cmFuc2Zlci1zZXJ2aWNlLWNvcmUtYWRtaW4iLCJ2YXVsdCJdLCJjb3JlX2lkIjoiODE0MSIsInNjb3BlIjpbInByb2ZpbGUiXSwiYXBpX3Jlc291cmNlcyI6WyJyaWQtUE9TVC9hcGkvdjEvc2FmZXRva2VuIiwicmlkLVBPU1QvcWJyZXBvcnQvYXBpLyoiLCJyaWQtR0VUL3FicmVwb3J0L2FwaS8qIiwicmlkLVBPU1QvaXN3LWRhdGEtc2VydmljZS8qKiIsInJpZC1QVVQvaXN3LWRhdGEtc2VydmljZS8qKiIsInJpZC1HRVQvaXN3LWRhdGEtc2VydmljZS8qKiIsInJpZC1QT1NUL3RyYW5zZmVycy9pbnF1aXJpZXMvKioiLCJyaWQtUE9TVC90cmFuc2ZlcnMvYWNjb3VudHMvKioiLCJyaWQtUE9TVC9hcGkvdjEvdHJhbnNmZXJzL3NlY3VyaXR5LyoqIiwicmlkLVBPU1QvYXBpL3YxL3RyYW5zZmVycy9pbnN0aXR1dGlvbnMvZngvKioiLCJyaWQtUFVUL3RyYW5zZmVycy9pbnF1aXJpZXMvdXBkYXRlIiwicmlkLVBVVC9hcGkvdjEvdHJhbnNmZXJzL3NlY3VyaXR5LyoqIiwicmlkLVBVVC9hcGkvdjEvdHJhbnNmZXJzL2luc3RpdHV0aW9ucy9meC8qKiIsInJpZC1HRVQvdHJhbnNmZXJzL2NyZWRpdHMvKioiLCJyaWQtR0VUL3RyYW5zZmVycy9zZXR0bGVtZW50cy8qKiIsInJpZC1HRVQvdHJhbnNmZXJzL3RyYW5zYWN0aW9uLyoqIiwicmlkLUdFVC9hcGkvdjEvdHJhbnNmZXJzL3NlY3VyaXR5LyoqIiwicmlkLUdFVC9hcGkvdjEvdHJhbnNmZXJzL2luc3RpdHV0aW9ucy9meC8qKiIsInJpZC1ERUxFVEUvYXBpL3YxL3RyYW5zZmVycy9zZWN1cml0eS8qKiJdLCJwb3N0Y2FyZF91c2VyIjoiZXNiIiwiZXhwIjoxNjg1Nzc4NDE2LCJjbGllbnRfbmFtZSI6IlRlc3REZW1vQXBwIiwiY2xpZW50X2xvZ28iOm51bGwsImp0aSI6IjNhYTg5MDI4LWQ2MTMtNDAwYi04MWE4LTE1YzljYTNhODQyOSIsInBheW1lbnRfY29kZSI6IjA1MTQxOTgxNTQ2ODUifQ.FoJZiiDfKi2A1kAHSMgEV6NTUXpoS8bX8DDxnneqwH08L0si9OHuMMnVhdPGvb_l9jl1iRx78_oHi-5mFOltmgkwi4GiORhugfM2xDzWDsiulJwqAS3LKH3isC3zuV64UXY4pSA33CeHnnFYmkzQYyiyciSxql4eAmbsNL4tvUhkoNmPh8OMXQ0F5IFz65cxa7bE6W1PPpFLoerWSEIwu6TymeWNI1VXrbDxomUXhQwDkjF8hCgEo2ap91W41XUoFahy--vlLdH9vuG8YyZqWqFuiWdVMUgadi9CzBcP2orFA5kvR8Xd8C5trizccT8EgAZTZ4jCeRcvfMpeFCM0Cw",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n\t\"issuerNr\":\"1\",\r\n\t\"pan\":\"5061030000002319730\",\r\n\t\"seqNr\":\"001\",\r\n\t\"expiryDate\":\"2605\",\r\n\t\"mobileNr\":\"08032162793\",\r\n\t\"customerId\":\"20230502134700581879664\",\r\n\t\"userId\":\"sheriff.adebisi\"\r\n}"
+				},
+				"url": {
+					"raw": "https://sandbox.interswitchng.com/cms/api/v2/card/reissue-pin",
+					"protocol": "https",
+					"host": [
+						"sandbox",
+						"interswitchng",
+						"com"
+					],
+					"path": [
+						"cms",
+						"api",
+						"v2",
+						"card",
+						"reissue-pin"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Block Card",
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "username",
+							"value": "esb",
+							"type": "string"
+						},
+						{
+							"key": "password",
+							"value": "Password1$",
+							"type": "string"
+						},
+						{
+							"key": "showPassword",
+							"value": false,
+							"type": "boolean"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"pan\": \"5060990000000041872\",\r\n    \"holdRspCode\": \"43\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://sandbox.interswitchng.com/cms/api/v1/card/prepaid/block",
+					"protocol": "https",
+					"host": [
+						"sandbox",
+						"interswitchng",
+						"com"
+					],
+					"path": [
+						"cms",
+						"api",
+						"v1",
+						"card",
+						"prepaid",
+						"block"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Unblock Card",
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "username",
+							"value": "esb",
+							"type": "string"
+						},
+						{
+							"key": "password",
+							"value": "Password1$",
+							"type": "string"
+						},
+						{
+							"key": "showPassword",
+							"value": false,
+							"type": "boolean"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "https://sandbox.interswitchng.com/cms/api/v1/card/prepaid/unblock",
+					"protocol": "https",
+					"host": [
+						"sandbox",
+						"interswitchng",
+						"com"
+					],
+					"path": [
+						"cms",
+						"api",
+						"v1",
+						"card",
+						"prepaid",
+						"unblock"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Card Details",
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "username",
+							"value": "esb",
+							"type": "string"
+						},
+						{
+							"key": "password",
+							"value": "Password1$",
+							"type": "string"
+						},
+						{
+							"key": "showPassword",
+							"value": false,
+							"type": "boolean"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n\t\"issuerNr\":1,\r\n    \"accountId\": \"5061030000002319664\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://sandbox.interswitchng.com/cms/api/v2/account/cards",
+					"protocol": "https",
+					"host": [
+						"sandbox",
+						"interswitchng",
+						"com"
+					],
+					"path": [
+						"cms",
+						"api",
+						"v2",
+						"account",
+						"cards"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
